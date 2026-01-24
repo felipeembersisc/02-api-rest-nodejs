@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "knex": "tsx ./node_modules/.bin/knex",
     "lint": "eslint src --ext .ts --fix"
   },
   "keywords": [],
