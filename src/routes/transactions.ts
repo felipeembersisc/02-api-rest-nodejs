@@ -4,6 +4,24 @@ import crypto from 'node:crypto'
 import { knexDb } from '../database.ts'
 
 export async function transactionsRoutes(app: FastifyInstance) {
+  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+    const transactions = await knexDb('transactions').select('*')
+
+    return reply.status(200).send(transactions)
+  })
+
+  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const getTransactionParamsSchema = z.object({
+      id: z.string(),
+    })
+
+    const { id } = getTransactionParamsSchema.parse(request.params)
+
+    const transaction = await knexDb('transactions').where({ id }).first()
+
+    return reply.status(200).send(transaction)
+  })
+
   app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     const createTransactionBodySchema = z.object({
       title: z.string(),
@@ -21,12 +39,6 @@ export async function transactionsRoutes(app: FastifyInstance) {
       amount: type === 'credit' ? amount : amount * -1,
     })
 
-    reply.status(201).send()
-  })
-
-  app.get('/', async () => {
-    const transcations = await knexDb('transactions').select('*')
-
-    return transcations
+    return reply.status(201).send()
   })
 }
