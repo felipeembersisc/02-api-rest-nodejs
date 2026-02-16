@@ -2,63 +2,94 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import crypto from 'node:crypto'
 import { knexDb } from '../database.ts'
+import { checkSessionIdExists } from '../middlewares/check-session-id-exists.ts'
 
 export async function transactionsRoutes(app: FastifyInstance) {
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const transactions = await knexDb('transactions').select('*')
+  app.get(
+    '/',
+    { preHandler: [checkSessionIdExists] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { sessionId } = request.cookies
 
-    return reply.status(200).send(transactions)
-  })
+      const transactions = await knexDb('transactions')
+        .where('session_id', sessionId)
+        .select('*')
 
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    const getTransactionParamsSchema = z.object({
-      id: z.string(),
-    })
+      return reply.status(200).send(transactions)
+    },
+  )
 
-    const { id } = getTransactionParamsSchema.parse(request.params)
+  app.get(
+    '/:id',
+    { preHandler: [checkSessionIdExists] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { sessionId } = request.cookies
 
-    const transaction = await knexDb('transactions').where({ id }).first()
-
-    return reply.status(200).send(transaction)
-  })
-
-  app.get('/summary', async (request: FastifyRequest, reply: FastifyReply) => {
-    const summary = await knexDb('transactions')
-      .sum('amount', { as: 'amount' })
-      .first()
-
-    return reply.status(200).send(summary)
-  })
-
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const createTransactionBodySchema = z.object({
-      title: z.string(),
-      amount: z.number(),
-      type: z.enum(['credit', 'debit']),
-    })
-
-    const { title, amount, type } = createTransactionBodySchema.parse(
-      request.body,
-    )
-
-    let sessionId = request.cookies.sessionId
-
-    if (!sessionId) {
-      sessionId = crypto.randomUUID()
-
-      reply.setCookie('sessionId', sessionId, {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+      const getTransactionParamsSchema = z.object({
+        id: z.string(),
       })
-    }
 
-    await knexDb('transactions').insert({
-      id: crypto.randomUUID(),
-      title,
-      amount: type === 'credit' ? amount : amount * -1,
-      session_id: sessionId,
-    })
+      const { id } = getTransactionParamsSchema.parse(request.params)
 
-    return reply.status(201).send()
-  })
+      const transaction = await knexDb('transactions')
+        .where({
+          id,
+          session_id: sessionId,
+        })
+        .first()
+
+      return reply.status(200).send(transaction)
+    },
+  )
+
+  app.get(
+    '/summary',
+    { preHandler: [checkSessionIdExists] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { sessionId } = request.cookies
+
+      const summary = await knexDb('transactions')
+        .where({ session_id: sessionId })
+        .sum('amount', { as: 'amount' })
+        .first()
+
+      return reply.status(200).send(summary)
+    },
+  )
+
+  app.post(
+    '/',
+    { preHandler: [checkSessionIdExists] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const createTransactionBodySchema = z.object({
+        title: z.string(),
+        amount: z.number(),
+        type: z.enum(['credit', 'debit']),
+      })
+
+      const { title, amount, type } = createTransactionBodySchema.parse(
+        request.body,
+      )
+
+      let { sessionId } = request.cookies
+
+      if (!sessionId) {
+        sessionId = crypto.randomUUID()
+
+        reply.setCookie('sessionId', sessionId, {
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+        })
+      }
+
+      await knexDb('transactions').insert({
+        id: crypto.randomUUID(),
+        title,
+        amount: type === 'credit' ? amount : amount * -1,
+        session_id: sessionId,
+      })
+
+      return reply.status(201).send()
+    },
+  )
 }
