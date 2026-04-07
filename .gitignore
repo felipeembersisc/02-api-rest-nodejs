@@ -142,3 +142,4 @@ vite.config.ts.timestamp-*
 
 # Folders
 db/app.db
+db/test.db
