@@ -140,6 +140,8 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Folders
-db/app.db
-db/test.db
+# Databases
+db/*.db
+
+# Build
+build
