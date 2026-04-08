@@ -38,7 +38,7 @@ export async function transactionsRoutes(app: FastifyInstance) {
         })
         .first()
 
-      return reply.status(200).send(transaction)
+      return reply.status(200).send({ transaction })
     },
   )
 
@@ -53,7 +53,7 @@ export async function transactionsRoutes(app: FastifyInstance) {
         .sum('amount', { as: 'amount' })
         .first()
 
-      return reply.status(200).send(summary)
+      return reply.status(200).send({ summary })
     },
   )
 
